@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -14,11 +15,12 @@ type Instruction int
 const (
 	INC Instruction = iota
 	DEB
+	END
 )
 
 type Statement struct {
 	inst       Instruction
-	target     int
+	target     int64
 	branch     string
 	elsebranch string
 }
@@ -49,16 +51,36 @@ func load_program(infn string) (out map[string]Statement, start string) {
 		if len(line) == 0 {
 			continue
 		}
-		fmt.Println(line)
 		fields := strings.Fields(line)
 		line_name := fields[0]
-		inst := fields[1]
-		target := fields[2]
-		branch := fields[3]
-		elsebranch := ""
-		if strings.ToLower(inst) == "deb" {
-			elsebranch = fields[3]
+		inst_s := strings.ToLower(fields[1])
+
+		if start == "" {
+			start = line_name
 		}
+
+		var stmt Statement
+		if inst_s == "end" {
+			stmt = Statement{END, 0, "", ""}
+		} else if inst_s == "deb" {
+			target, err := strconv.ParseInt(fields[2], 10, 64)
+			branch := fields[3]
+			elsebranch := fields[3]
+			stmt = Statement{DEB, target, branch, elsebranch}
+			if err != nil {
+				fmt.Println("Target registers must be valid integers.")
+				os.Exit(1)
+			}
+		} else if inst_s == "inc" {
+			target, err := strconv.ParseInt(fields[2], 10, 64)
+			branch := fields[3]
+			stmt = Statement{INC, target, branch, ""}
+			if err != nil {
+				fmt.Println("Target registers must be valid integers.")
+				os.Exit(1)
+			}
+		}
+		out[line_name] = stmt
 	}
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)
