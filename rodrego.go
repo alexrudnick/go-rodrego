@@ -65,7 +65,7 @@ func load_program(infn string) (out map[string]Statement, start string) {
 		} else if inst_s == "deb" {
 			target, err := strconv.ParseInt(fields[2], 10, 64)
 			branch := fields[3]
-			elsebranch := fields[3]
+			elsebranch := fields[4]
 			stmt = Statement{DEB, target, branch, elsebranch}
 			if err != nil {
 				fmt.Println("Target registers must be valid integers.")
@@ -88,6 +88,36 @@ func load_program(infn string) (out map[string]Statement, start string) {
 	return
 }
 
+func execute(program map[string]Statement, start string, registers *map[int64]int64) {
+	current := start
+	for true {
+		stmt := program[current]
+		fmt.Println(stmt)
+
+		switch stmt.inst {
+		case END:
+			{
+				fmt.Println("ok done.")
+				return
+			}
+		case INC:
+			{
+				(*registers)[stmt.target] += 1
+				current = stmt.branch
+			}
+		case DEB:
+			{
+				if (*registers)[stmt.target] == 0 {
+					current = stmt.elsebranch
+				} else {
+					(*registers)[stmt.target] -= 1
+					current = stmt.branch
+				}
+			}
+		}
+	}
+}
+
 func main() {
 	if len(os.Args) <= 1 {
 		fmt.Println("need more arguments")
@@ -98,4 +128,8 @@ func main() {
 	program, start := load_program(infn)
 	fmt.Println(program)
 	fmt.Println(start)
+
+	registers := make(map[int64]int64)
+
+	execute(program, start, &registers)
 }
