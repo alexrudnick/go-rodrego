@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -88,16 +89,88 @@ func load_program(infn string) (out map[string]Statement, start string) {
 	return
 }
 
-func execute(program map[string]Statement, start string, registers *map[int64]int64) {
+func load_registers(registersfn string, registers *map[int64]int64) {
+	f, err := os.Open(registersfn)
+	if err != nil {
+		fmt.Printf("error opening file: %v\n", err)
+		os.Exit(1)
+	}
+	defer f.Close()
+	reader := bufio.NewReader(f)
+
+	scanner := bufio.NewScanner(reader)
+	scanner.Split(magicSplit)
+
+	lineno := 1
+	for scanner.Scan() {
+		line := scanner.Text()
+		if len(line) == 0 {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) != 2 {
+			fmt.Println("required format for register file lines:")
+			fmt.Println("<register number> <register value>")
+			os.Exit(1)
+		}
+		register_name := fields[0]
+		reg, err := strconv.ParseInt(register_name, 10, 64)
+		if err != nil || reg < 0 {
+			fmt.Print("line ", lineno, ": ")
+			fmt.Println("registers must be referenced with natural numbers.")
+			os.Exit(1)
+		}
+		register_value := fields[1]
+		val, err := strconv.ParseInt(register_value, 10, 64)
+		if err != nil || val < 0 {
+			fmt.Print("line ", lineno, ": ")
+			fmt.Println("register values must be natural numbers.")
+			os.Exit(1)
+		}
+		(*registers)[reg] = val
+		lineno += 1
+	}
+	if err := scanner.Err(); err != nil {
+		log.Fatal(err)
+	}
+	return
+}
+
+func (stmt Statement) Println() {
+	switch stmt.inst {
+	case END:
+		fmt.Println("END")
+	case INC:
+		fmt.Printf("INC register %d and GOTO %s\n", stmt.target, stmt.branch)
+	case DEB:
+		fmt.Printf("DEB register %d and GOTO %s else %s\n",
+			stmt.target, stmt.branch, stmt.elsebranch)
+	}
+}
+
+func printRegisters(registers *map[int64]int64) {
+	if len(*registers) == 0 {
+		fmt.Println("[ all registers empty ]")
+	}
+	for k, v := range *registers {
+		fmt.Println("register", k, "=", v)
+	}
+}
+
+func execute(program map[string]Statement, start string,
+	registers *map[int64]int64, step bool) {
 	current := start
+	bio := bufio.NewReader(os.Stdin)
 	for true {
 		stmt := program[current]
-		fmt.Println(stmt)
+		fmt.Println("[[ now on line:", current, "]]")
+		printRegisters(registers)
+		fmt.Print("performing: ")
+		stmt.Println()
 
 		switch stmt.inst {
 		case END:
 			{
-				fmt.Println("ok done.")
 				return
 			}
 		case INC:
@@ -115,21 +188,42 @@ func execute(program map[string]Statement, start string, registers *map[int64]in
 				}
 			}
 		}
+
+		if step {
+			fmt.Println("ENTER to continue...")
+			bio.ReadLine()
+		}
 	}
 }
 
 func main() {
-	if len(os.Args) <= 1 {
-		fmt.Println("need more arguments")
+	var infn string
+	var valuesfn string
+	var step bool
+	flag.StringVar(&infn, "program", "",
+		"filename of a rodrego program to execute (required)")
+	flag.StringVar(&valuesfn, "values", "",
+		"filename for a set of initial register values")
+	flag.BoolVar(&step, "step", false,
+		"if true, step through program one instruction at a time")
+	flag.Parse()
+
+	if infn == "" {
+		fmt.Println("please specify a program to execute. See", os.Args[0],
+			"-help")
+		fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
+		flag.PrintDefaults()
 		os.Exit(1)
-		return
 	}
-	infn := os.Args[1]
+
 	program, start := load_program(infn)
-	fmt.Println(program)
-	fmt.Println(start)
 
 	registers := make(map[int64]int64)
+	if valuesfn != "" {
+		load_registers(valuesfn, &registers)
+	}
 
-	execute(program, start, &registers)
+	execute(program, start, &registers, step)
+	fmt.Println("*** Final state of the world ***")
+	printRegisters(&registers)
 }
