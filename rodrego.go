@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -29,14 +30,15 @@ type Statement struct {
 	elsebranch string
 }
 
-/* Replace any DOS newlines with Unix newlines, then any Mac newlines with Unix
- * newlines. Because, y'know, there are Mac newlines in the example programs. */
+/* Replace any Mac newlines with Unix newlines. Because, y'know, there are Mac
+ * newlines in the example programs. DOS newlines are handled by the golang
+ * standard bufio.ScanLines function. */
 func magicSplit(data []byte, atEOF bool) (advance int, token []byte, err error) {
-	s := string(data)
-	r := strings.NewReplacer("\r\n", "\n", "\r", "\n")
-	replaced := r.Replace(s)
-	newdata := []byte(replaced)
-	advance, token, err = bufio.ScanLines(newdata, atEOF)
+	innerline := regexp.MustCompile("\r([^\n])")
+	endline := regexp.MustCompile("\r$")
+	replaced := innerline.ReplaceAll(data, []byte("\n$1"))
+	replaced = endline.ReplaceAll(replaced, []byte("\n"))
+	advance, token, err = bufio.ScanLines(replaced, atEOF)
 	return
 }
 
@@ -98,6 +100,7 @@ func load_program(infn string) (out map[string]Statement, start string) {
 		} else {
 			fmt.Println("error on text line:", lineno)
 			fmt.Println("valid instructions are INC, DEB and END")
+			os.Exit(1)
 		}
 		out[line_name] = stmt
 	}
