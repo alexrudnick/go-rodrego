@@ -1,8 +1,11 @@
+/*
+Simple golang implementation of the RodRego register machine. See README.md for
+more details.
+*/
 package main
 
 import (
 	"bufio"
-	"bytes"
 	"flag"
 	"fmt"
 	"log"
@@ -26,12 +29,19 @@ type Statement struct {
 	elsebranch string
 }
 
+/* Replace any DOS newlines with Unix newlines, then any Mac newlines with Unix
+ * newlines. Because, y'know, there are Mac newlines in the example programs. */
 func magicSplit(data []byte, atEOF bool) (advance int, token []byte, err error) {
-	newdata := bytes.Replace(data, []byte("\r"), []byte("\n"), -1)
+	s := string(data)
+	r := strings.NewReplacer("\r\n", "\n", "\r", "\n")
+	replaced := r.Replace(s)
+	newdata := []byte(replaced)
 	advance, token, err = bufio.ScanLines(newdata, atEOF)
 	return
 }
 
+/* Given a file name, load a rodrego program and find the initial line to
+ * execute. */
 func load_program(infn string) (out map[string]Statement, start string) {
 	out = make(map[string]Statement)
 	start = ""
@@ -43,15 +53,18 @@ func load_program(infn string) (out map[string]Statement, start string) {
 	}
 	defer f.Close()
 	reader := bufio.NewReader(f)
-
 	scanner := bufio.NewScanner(reader)
 	scanner.Split(magicSplit)
 
+	lineno := 0
 	for scanner.Scan() {
 		line := scanner.Text()
-		if len(line) == 0 {
+		line = strings.TrimSpace(line)
+		lineno += 1
+		if len(line) == 0 || line[0] == '#' {
 			continue
 		}
+
 		fields := strings.Fields(line)
 		line_name := fields[0]
 		inst_s := strings.ToLower(fields[1])
@@ -69,6 +82,7 @@ func load_program(infn string) (out map[string]Statement, start string) {
 			elsebranch := fields[4]
 			stmt = Statement{DEB, target, branch, elsebranch}
 			if err != nil {
+				fmt.Println("error on text line:", lineno)
 				fmt.Println("Target registers must be valid integers.")
 				os.Exit(1)
 			}
@@ -77,18 +91,24 @@ func load_program(infn string) (out map[string]Statement, start string) {
 			branch := fields[3]
 			stmt = Statement{INC, target, branch, ""}
 			if err != nil {
+				fmt.Println("error on text line:", lineno)
 				fmt.Println("Target registers must be valid integers.")
 				os.Exit(1)
 			}
+		} else {
+			fmt.Println("error on text line:", lineno)
+			fmt.Println("valid instructions are INC, DEB and END")
 		}
 		out[line_name] = stmt
 	}
 	if err := scanner.Err(); err != nil {
+		fmt.Println("error on text line:", lineno)
 		log.Fatal(err)
 	}
 	return
 }
 
+/* Read in the initial state of the registers from a file. */
 func load_registers(registersfn string, registers *map[int64]int64) {
 	f, err := os.Open(registersfn)
 	if err != nil {
@@ -97,18 +117,20 @@ func load_registers(registersfn string, registers *map[int64]int64) {
 	}
 	defer f.Close()
 	reader := bufio.NewReader(f)
-
 	scanner := bufio.NewScanner(reader)
 	scanner.Split(magicSplit)
 
-	lineno := 1
+	lineno := 0
 	for scanner.Scan() {
 		line := scanner.Text()
-		if len(line) == 0 {
+		line = strings.TrimSpace(line)
+		lineno += 1
+		if len(line) == 0 || line[0] == '#' {
 			continue
 		}
 		fields := strings.Fields(line)
 		if len(fields) != 2 {
+			fmt.Println("error on text line:", lineno)
 			fmt.Println("required format for register file lines:")
 			fmt.Println("<register number> <register value>")
 			os.Exit(1)
@@ -116,7 +138,7 @@ func load_registers(registersfn string, registers *map[int64]int64) {
 		register_name := fields[0]
 		reg, err := strconv.ParseInt(register_name, 10, 64)
 		if err != nil || reg < 0 {
-			fmt.Print("line ", lineno, ": ")
+			fmt.Println("error on text line:", lineno)
 			fmt.Println("registers must be referenced with natural numbers.")
 			os.Exit(1)
 		}
@@ -128,7 +150,6 @@ func load_registers(registersfn string, registers *map[int64]int64) {
 			os.Exit(1)
 		}
 		(*registers)[reg] = val
-		lineno += 1
 	}
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)
@@ -136,6 +157,7 @@ func load_registers(registersfn string, registers *map[int64]int64) {
 	return
 }
 
+/* Method to print out Statement structs */
 func (stmt Statement) Println() {
 	switch stmt.inst {
 	case END:
@@ -148,6 +170,7 @@ func (stmt Statement) Println() {
 	}
 }
 
+/* Display the current values for all the set registers */
 func printRegisters(registers *map[int64]int64) {
 	if len(*registers) == 0 {
 		fmt.Println("[ all registers empty ]")
@@ -157,6 +180,8 @@ func printRegisters(registers *map[int64]int64) {
 	}
 }
 
+/* Run a rodrego program, given a start state and a pointer to the registers.
+* Will probably the registers. */
 func execute(program map[string]Statement, start string,
 	registers *map[int64]int64, step bool) {
 	current := start
