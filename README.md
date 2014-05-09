@@ -57,11 +57,11 @@ This will run the ``add.rgo`` file with initial register values set by
 then the end result should be their sum, 15, in the output register.
 
 ## file formats
-Interestingly, RodRego ships with sample programs that have old-style (pre-Mac
+The official RodRego ships with sample programs that have old-style (pre-Mac
 OS X) Mac line endings; just a carriage return character, rather than the more
 familiar Unix/Mac line endings (line feed) or DOS/Windows-style CRLF.
 
-RodRego supports programs with any of these line endings, which is slightly
+go-rodrego supports programs with any of these line endings, which is slightly
 interesting because the Go standard library routines don't expect by default to
 see old-style Mac line endings.
 
