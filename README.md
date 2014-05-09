@@ -76,7 +76,7 @@ INSTRUCTION ARGUMENTS. Instructions can be one of ``INC``, ``DEB`` or ``END``
 (any case is fine).
 
   * INC takes two arguments, a register number to increment and a line to jump to next.
-  * DEB is ``decrement or branch``, and it takes three arguments: the register number to degrement, a line number to jump to if that can be done, and a line number to jump to if the register is already at 0. This is the only way to do a conditional branch in the language.
+  * DEB is "decrement or branch", and it takes three arguments: the register number to degrement, a line number to jump to if that can be done, and a line number to jump to if the register is already at 0. This is the only way to do a conditional branch in the language.
   * END ends the program.
 
 Line numbers are canonically natural numbers in base-10, but in this
