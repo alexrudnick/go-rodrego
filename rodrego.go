@@ -76,9 +76,10 @@ func load_program(infn string) (out map[string]Statement, start string) {
 		}
 
 		var stmt Statement
-		if inst_s == "end" {
+		switch inst_s {
+		case "end":
 			stmt = Statement{END, 0, "", ""}
-		} else if inst_s == "deb" {
+		case "deb":
 			target, err := strconv.ParseInt(fields[2], 10, 64)
 			branch := fields[3]
 			elsebranch := fields[4]
@@ -88,7 +89,7 @@ func load_program(infn string) (out map[string]Statement, start string) {
 				fmt.Println("Target registers must be valid integers.")
 				os.Exit(1)
 			}
-		} else if inst_s == "inc" {
+		case "inc":
 			target, err := strconv.ParseInt(fields[2], 10, 64)
 			branch := fields[3]
 			stmt = Statement{INC, target, branch, ""}
@@ -97,7 +98,7 @@ func load_program(infn string) (out map[string]Statement, start string) {
 				fmt.Println("Target registers must be valid integers.")
 				os.Exit(1)
 			}
-		} else {
+		default:
 			fmt.Println("error on text line:", lineno)
 			fmt.Println("valid instructions are INC, DEB and END")
 			os.Exit(1)
@@ -189,7 +190,7 @@ func execute(program map[string]Statement, start string,
 	registers *map[int64]int64, step bool) {
 	current := start
 	bio := bufio.NewReader(os.Stdin)
-	for true {
+	for {
 		stmt := program[current]
 		fmt.Println("[[ now on line:", current, "]]")
 		printRegisters(registers)
@@ -198,22 +199,16 @@ func execute(program map[string]Statement, start string,
 
 		switch stmt.inst {
 		case END:
-			{
-				return
-			}
+			return
 		case INC:
-			{
-				(*registers)[stmt.target] += 1
-				current = stmt.branch
-			}
+			(*registers)[stmt.target] += 1
+			current = stmt.branch
 		case DEB:
-			{
-				if (*registers)[stmt.target] == 0 {
-					current = stmt.elsebranch
-				} else {
-					(*registers)[stmt.target] -= 1
-					current = stmt.branch
-				}
+			if (*registers)[stmt.target] == 0 {
+				current = stmt.elsebranch
+			} else {
+				(*registers)[stmt.target] -= 1
+				current = stmt.branch
 			}
 		}
 
