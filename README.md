@@ -44,6 +44,7 @@ with names of files on the command line.
  * The ``-step`` flag makes the interpreter step through a program one instruction at a time.
 
 For example:
+
     $ ./rodrego -program testprograms/add.rgo -values values.txt
 
 This will run the ``add.rgo`` file with initial register values set by
