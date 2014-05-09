@@ -184,7 +184,7 @@ func printRegisters(registers *map[int64]int64) {
 }
 
 /* Run a rodrego program, given a start state and a pointer to the registers.
-* Will probably the registers. */
+* Will probably mutate the registers. */
 func execute(program map[string]Statement, start string,
 	registers *map[int64]int64, step bool) {
 	current := start
